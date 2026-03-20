@@ -169,10 +169,15 @@ def _get_threshold(
     )
 
 
+PixelBlockSize: int = 5
+
+
 def visualize(
     image: np.ndarray,
     detections: List[List[float]],
     scale_factor_detections: float,
+    pixelate: bool = True,
+    pixel_block_size: int = PixelBlockSize,
 ) -> np.ndarray:
     """
     parameter image: image on which we want to make detections
@@ -194,14 +199,21 @@ def visualize(
         w = x2 - x1
         h = y2 - y1
 
-        ksize = (image.shape[0] // 2, image.shape[1] // 2)
-        image_fg[y1:y2, x1:x2] = cv2.blur(image_fg[y1:y2, x1:x2], ksize)
-        cv2.ellipse(mask, (((x1 + x2) // 2, (y1 + y2) // 2), (w, h), 0), 255, -1)
+        if pixelate:
+            roi = image_fg[y1:y2, x1:x2]
+            small_roi = cv2.resize(roi, (int(np.clip(w // pixel_block_size, 1, image.shape[1]-1)),int(np.clip(h // pixel_block_size, 1, image.shape[0]-1))), interpolation=cv2.INTER_LINEAR)
+            pixelated_roi = cv2.resize(small_roi, (w, h), interpolation=cv2.INTER_NEAREST)
+            image[y1:y2, x1:x2] = pixelated_roi.copy()
+        else:
+            ksize = (image.shape[0] // 2, image.shape[1] // 2)
+            image_fg[y1:y2, x1:x2] = cv2.blur(image_fg[y1:y2, x1:x2], ksize)
+            cv2.ellipse(mask, (((x1 + x2) // 2, (y1 + y2) // 2), (w, h), 0), 255, -1)
 
-    inverse_mask = cv2.bitwise_not(mask)
-    image_bg = cv2.bitwise_and(image, image, mask=inverse_mask)
-    image_fg = cv2.bitwise_and(image_fg, image_fg, mask=mask)
-    image = cv2.add(image_bg, image_fg)
+    if not pixelate:
+        inverse_mask = cv2.bitwise_not(mask)
+        image_bg = cv2.bitwise_and(image, image, mask=inverse_mask)
+        image_fg = cv2.bitwise_and(image_fg, image_fg, mask=mask)
+        image = cv2.add(image_bg, image_fg)
 
     return image
 

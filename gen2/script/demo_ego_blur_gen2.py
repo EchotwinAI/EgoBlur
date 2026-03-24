@@ -447,10 +447,13 @@ def visualize_video(
     try:
         clip.write_videofile(
             output_video_path,
-            codec="libx264",
+            codec="libx265",
             audio=False,
             fps=output_fps,
-            ffmpeg_params=["-pix_fmt", "yuv420p"],
+            ffmpeg_params=[
+                "-g", "120",
+                "-pix_fmt", "yuv420p10le",
+            ],
         )
         logger.info(f"Successfully output video to:{output_video_path}")
     finally:

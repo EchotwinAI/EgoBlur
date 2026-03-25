@@ -357,8 +357,6 @@ def visualize_video(
                 )
 
             try:
-                face_detector = None
-                lp_detector = None
                 for frame in progress_iterator:
                     frame_start_time = time.time()
 

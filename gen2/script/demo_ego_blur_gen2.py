@@ -357,6 +357,8 @@ def visualize_video(
                 )
 
             try:
+                face_detector = None
+                lp_detector = None
                 for frame in progress_iterator:
                     frame_start_time = time.time()
 
@@ -451,8 +453,9 @@ def visualize_video(
             audio=False,
             fps=output_fps,
             ffmpeg_params=[
-                "-g", "120",
-                "-pix_fmt", "yuv420p10le",
+                "-g", "120",  # IDR Interval
+                "-pix_fmt", "yuv420p10le",  # Pixel format
+                "-b:v" , "5M",  # Bitrate
             ],
         )
         logger.info(f"Successfully output video to:{output_video_path}")

@@ -18,6 +18,7 @@
 import argparse
 import math
 import time
+from datetime import datetime, timezone
 from typing import Dict, List, Optional
 
 import cv2
@@ -224,6 +225,7 @@ def visualize_image(
     lp_detector: Optional[EgoblurDetector],
     output_image_path: str,
     scale_factor_detections: float,
+    pixelate: bool = True,
 ):
     """
     parameter input_image_path: absolute path to the input image
@@ -273,6 +275,7 @@ def visualize_image(
         image,
         detections,
         scale_factor_detections,
+        pixelate=pixelate,
     )
     blur_end_time = time.time()
     blur_time = blur_end_time - blur_start_time
@@ -295,6 +298,7 @@ def visualize_video(
     lp_detector: Optional[EgoblurDetector],
     output_video_path: str,
     scale_factor_detections: float,
+    pixelate: bool = True,
 ) -> None:
     """
     parameter input_video_path: absolute path to the input video
@@ -327,6 +331,8 @@ def visualize_video(
     total_frame_time: float = 0.0
     frame_count: int = 0
 
+    face_detector_th = face_detector._model_score_threshold if face_detector is not None else None
+    lp_detector_th = lp_detector._model_score_threshold if lp_detector is not None else None
     try:
         with patch_instances(fields=PATCH_INSTANCES_FIELDS):
             frame_iterator = video_reader_clip.iter_frames(fps=output_fps)
@@ -397,6 +403,7 @@ def visualize_video(
                         bgr_image.copy(),
                         detections,
                         scale_factor_detections,
+                        pixelate=pixelate,
                     )
                     blur_end_time = time.time()
                     total_blur_time += blur_end_time - blur_start_time
@@ -445,6 +452,12 @@ def visualize_video(
 
     clip = ImageSequenceClip(visualized_frames, fps=output_fps)
     try:
+        service_name = "" \
+            f"blur_time={datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}, " \
+            f"pixelate={pixelate}, "\
+            f"face_detector_th={face_detector_th}, "\
+            f"lp_detector_th={lp_detector_th}"
+        print(f"service_name={service_name}")
         clip.write_videofile(
             output_video_path,
             codec="libx265",
@@ -454,6 +467,7 @@ def visualize_video(
                 "-g", "120",  # IDR Interval
                 "-pix_fmt", "yuv420p10le",  # Pixel format
                 "-b:v" , "5M",  # Bitrate
+                "-metadata", f"service_name={service_name}",
             ],
         )
         logger.info(f"Successfully output video to:{output_video_path}")

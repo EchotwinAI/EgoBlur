@@ -170,7 +170,7 @@ def _get_threshold(
     )
 
 
-PixelBlockSize: int = 5
+PixelBlockSize: int = 10
 
 
 def visualize(
@@ -179,6 +179,7 @@ def visualize(
     scale_factor_detections: float,
     pixelate: bool = True,
     pixel_block_size: int = PixelBlockSize,
+    color: Optional[tuple[int, int, int]] = None,
 ) -> np.ndarray:
     """
     parameter image: image on which we want to make detections
@@ -210,6 +211,10 @@ def visualize(
             image_fg[y1:y2, x1:x2] = cv2.blur(image_fg[y1:y2, x1:x2], ksize)
             cv2.ellipse(mask, (((x1 + x2) // 2, (y1 + y2) // 2), (w, h), 0), 255, -1)
 
+        if color is not None:
+            # Create a rectangle of color around the detection
+            cv2.rectangle(image, (x1, y1), (x2, y2), color=color, thickness=2)
+
     if not pixelate:
         inverse_mask = cv2.bitwise_not(mask)
         image_bg = cv2.bitwise_and(image, image, mask=inverse_mask)
@@ -226,6 +231,7 @@ def visualize_image(
     output_image_path: str,
     scale_factor_detections: float,
     pixelate: bool = True,
+    debug: bool = False,
 ):
     """
     parameter input_image_path: absolute path to the input image
@@ -240,6 +246,8 @@ def visualize_image(
     image = bgr_image.copy()
 
     image_tensor = get_image_tensor(bgr_image)
+    face_detections = []
+    lp_detections = []
     detections = []
 
     # Speed tracking variables
@@ -256,7 +264,10 @@ def visualize_image(
                         f"EgoblurDetector.run is expected to return results for a single "
                         f"image in this script, got {len(face_results)}."
                     )
-                detections.extend(face_results[0])
+                if debug:
+                    face_detections.extend(face_results[0])
+                else:
+                    detections.extend(face_results[0])
 
         # get license plate detections
         if lp_detector is not None:
@@ -268,15 +279,34 @@ def visualize_image(
                         f"EgoblurDetector.run is expected to return results for a single "
                         f"image in this script, got {len(lp_results)}."
                     )
-                detections.extend(lp_results[0])
+                if debug:
+                    lp_detections.extend(lp_results[0])
+                else:
+                    detections.extend(lp_results[0])
 
     blur_start_time = time.time()
-    image = visualize(
-        image,
-        detections,
-        scale_factor_detections,
-        pixelate=pixelate,
-    )
+    if debug:
+        image = visualize(
+            image,
+            face_detections,
+            scale_factor_detections,
+            pixelate=pixelate,
+            color=(0, 0, 255),
+        )
+        image = visualize(
+            image,
+            lp_detections,
+            scale_factor_detections,
+            pixelate=pixelate,
+            color=(0, 255, 0),
+        )
+    else:
+        image = visualize(
+            image,
+            detections,
+            scale_factor_detections,
+            pixelate=pixelate,
+        )
     blur_end_time = time.time()
     blur_time = blur_end_time - blur_start_time
 
@@ -299,6 +329,7 @@ def visualize_video(
     output_video_path: str,
     scale_factor_detections: float,
     pixelate: bool = True,
+    debug: bool = False,
 ) -> None:
     """
     parameter input_video_path: absolute path to the input video
@@ -371,6 +402,8 @@ def visualize_video(
 
                     bgr_image = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
                     image_tensor = get_image_tensor(bgr_image)
+                    face_detections: List[List[float]] = []
+                    lp_detections: List[List[float]] = []
                     detections: List[List[float]] = []
 
                     frame_inference_time: float = 0.0
@@ -384,7 +417,10 @@ def visualize_video(
                                     "EgoblurDetector.run is expected to return results "
                                     f"for a single image in this script, got {len(face_results)}."
                                 )
-                            detections.extend(face_results[0])
+                            if debug:
+                                face_detections.extend(face_results[0])
+                            else:
+                                detections.extend(face_results[0])
                     if lp_detector is not None:
                         lp_results = lp_detector.run(image_tensor)
                         frame_inference_time += lp_detector.last_inference_time
@@ -394,17 +430,36 @@ def visualize_video(
                                     "EgoblurDetector.run is expected to return results "
                                     f"for a single image in this script, got {len(lp_results)}."
                                 )
-                            detections.extend(lp_results[0])
+                            if debug:
+                                lp_detections.extend(lp_results[0])
+                            else:
+                                detections.extend(lp_results[0])
 
                     total_inference_time += frame_inference_time
 
                     blur_start_time = time.time()
-                    visualized_bgr = visualize(
-                        bgr_image.copy(),
-                        detections,
-                        scale_factor_detections,
-                        pixelate=pixelate,
-                    )
+                    if debug:
+                        visualized_bgr = visualize(
+                            bgr_image.copy(),
+                            face_detections,
+                            scale_factor_detections,
+                            pixelate=pixelate,
+                            color=(0, 0, 255),
+                        )
+                        visualized_bgr = visualize(
+                            visualized_bgr,
+                            lp_detections,
+                            scale_factor_detections,
+                            pixelate=pixelate,
+                            color=(0, 255, 0),
+                        )
+                    else:
+                        visualized_bgr = visualize(
+                            bgr_image.copy(),
+                            detections,
+                            scale_factor_detections,
+                            pixelate=pixelate,
+                        )
                     blur_end_time = time.time()
                     total_blur_time += blur_end_time - blur_start_time
 

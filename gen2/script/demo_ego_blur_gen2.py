@@ -515,7 +515,7 @@ def visualize_video(
         print(f"service_name={service_name}")
         clip.write_videofile(
             output_video_path,
-            codec="libx265",
+            codec="hevc_nvenc", # NVIDIA's H.265 (HEVC) hardware encoder
             audio=False,
             fps=output_fps,
             ffmpeg_params=[
@@ -523,6 +523,7 @@ def visualize_video(
                 "-pix_fmt", "yuv420p10le",  # Pixel format
                 "-b:v" , "5M",  # Bitrate
                 "-metadata", f"service_name={service_name}",
+                "-preset", "fast", # Instructs the NVENC chip to prioritize raw speed
             ],
         )
         logger.info(f"Successfully output video to:{output_video_path}")
